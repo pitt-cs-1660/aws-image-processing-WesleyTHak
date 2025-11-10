@@ -32,25 +32,57 @@ def exif_handler(event, context):
     failed_count = 0
 
     # iterate over all SNS records
-    for sns_record in event.get('Records', []):
+    for sns_record in event.get("Records", []):
         try:
             # extract and parse SNS message
-            sns_message = json.loads(sns_record['Sns']['Message'])
+            sns_message = json.loads(sns_record["Sns"]["Message"])
 
             # iterate over all S3 records in the SNS message
-            for s3_event in sns_message.get('Records', []):
+            for s3_event in sns_message.get("Records", []):
                 try:
-                    s3_record = s3_event['s3']
-                    bucket_name = s3_record['bucket']['name']
-                    object_key = s3_record['object']['key']
+                    s3_record = s3_event["s3"]
+                    bucket_name = s3_record["bucket"]["name"]
+                    object_key = s3_record["object"]["key"]
 
                     print(f"Processing: s3://{bucket_name}/{object_key}")
 
-                    ######
-                    #
-                    #  TODO: add exif lambda code here
-                    #
-                    ######
+                    # download image from S3
+                    image = download_from_s3(bucket_name, object_key)
+
+                    # extract EXIF metadata
+                    exif_data = {
+                        "width": image.width,
+                        "height": image.height,
+                        "format": image.format,
+                        "mode": image.mode,
+                    }
+
+                    # extract EXIF tags if available
+                    if hasattr(image, "getexif"):
+                        exif = image.getexif()
+                        if exif:
+                            for tag_id, value in exif.items():
+                                try:
+                                    exif_data[str(tag_id)] = str(value)
+                                except Exception as e:
+                                    print(
+                                        f"Error processing tag {tag_id}: {e}"
+                                    )
+
+                    print(
+                        f"Extracted EXIF data: {json.dumps(exif_data, indent=2)}"
+                    )
+
+                    # upload metadata to /processed/exif/ as JSON
+                    filename = Path(object_key).stem  # no extension
+                    output_key = f"processed/exif/{filename}.json"
+                    upload_to_s3(
+                        bucket_name,
+                        output_key,
+                        json.dumps(exif_data, indent=2),
+                        "application/json",
+                    )
+                    print(f"Uploaded to: {output_key}")
 
                     processed_count += 1
 
@@ -64,9 +96,9 @@ def exif_handler(event, context):
             failed_count += 1
 
     summary = {
-        'statusCode': 200 if failed_count == 0 else 207,  # @note: 207 = multi-status
-        'processed': processed_count,
-        'failed': failed_count,
+        "statusCode": 200 if failed_count == 0 else 207,
+        "processed": processed_count,
+        "failed": failed_count,
     }
 
     print(f"Processing complete: {processed_count} succeeded, {failed_count} failed")
