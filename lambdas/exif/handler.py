@@ -74,14 +74,10 @@ def exif_handler(event, context):
                     )
 
                     # upload metadata to /processed/exif/ as JSON
-                    filename = Path(object_key).stem  # no extension
+                    from pathlib import Path
+                    filename = Path(object_key).stem  # @note: get filename without extension
                     output_key = f"processed/exif/{filename}.json"
-                    upload_to_s3(
-                        bucket_name,
-                        output_key,
-                        json.dumps(exif_data, indent=2),
-                        "application/json",
-                    )
+                    upload_to_s3(bucket_name, output_key, json.dumps(exif_data, indent=2), 'application/json')
                     print(f"Uploaded to: {output_key}")
 
                     processed_count += 1
