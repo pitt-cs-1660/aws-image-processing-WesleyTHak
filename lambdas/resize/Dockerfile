@@ -10,7 +10,7 @@ WORKDIR /var/task
 COPY pyproject.toml .
 
 # install dependencies into .venv
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 # copy handler code
 COPY handler.py .
