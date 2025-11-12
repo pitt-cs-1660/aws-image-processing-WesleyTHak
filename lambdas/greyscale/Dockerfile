@@ -7,7 +7,7 @@ WORKDIR /var/task
 
 COPY pyproject.toml .
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 COPY handler.py .
 
